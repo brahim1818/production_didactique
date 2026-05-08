@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐱 Chat vers Fromage — Structures de Contrôle</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',sans-serif;background:#1a1a2e;color:#e0e0e0;overflow-x:hidden}
+#app{display:flex;flex-direction:column;height:100vh}
+#header{background:linear-gradient(135deg,#16213e,#0f3460);padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #e94560;flex-shrink:0}
+#header h1{font-size:1.2em;color:#fff}
+#level-badges{display:flex;gap:8px}
+.lvl-badge{padding:4px 12px;border-radius:20px;font-size:12px;cursor:pointer;border:2px solid transparent;transition:all .3s}
+.lvl-badge.locked{background:#333;color:#666;cursor:not-allowed}
+.lvl-badge.available{background:#0f3460;color:#a0c4ff;border-color:#378add}
+.lvl-badge.active{background:#e94560;color:#fff;border-color:#ff6b8a}
+.lvl-badge.done{background:#1d9e75;color:#fff;border-color:#5dcaa5}
+#main{display:flex;flex:1;overflow:hidden}
+#left-panel{width:220px;background:#16213e;border-right:2px solid #0f3460;display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+#level-info{padding:12px;border-bottom:1px solid #0f3460}
+#level-info h3{color:#e94560;font-size:14px;margin-bottom:6px}
+#level-info p{font-size:12px;color:#aaa;line-height:1.5}
+#objective{padding:8px 12px;background:#0f3460;margin:8px;border-radius:8px;font-size:11px;color:#a0c4ff}
+#toolbox{padding:12px}
+#toolbox h4{font-size:12px;color:#888;margin-bottom:8px;text-transform:uppercase;letter-spacing:1px}
+.block-tool{padding:8px 12px;margin-bottom:6px;border-radius:6px;cursor:grab;font-size:12px;font-weight:600;user-select:none;transition:transform .2s,opacity .2s;display:flex;align-items:center;gap:6px;border:2px solid transparent}
+.block-tool:hover{transform:translateX(3px)}
+.block-tool:active{cursor:grabbing;transform:scale(.95)}
+.block-tool.move{background:#1d4ed8;border-color:#3b82f6;color:#bfdbfe}
+.block-tool.repeat{background:#7c3aed;border-color:#a78bfa;color:#ede9fe}
+.block-tool.if{background:#b45309;border-color:#fbbf24;color:#fef3c7}
+.block-tool.func{background:#0f766e;border-color:#2dd4bf;color:#ccfbf1}
+.block-tool.while{background:#9d174d;border-color:#f472b6;color:#fce7f3}
+#center-panel{flex:1;display:flex;flex-direction:column;overflow:hidden}
+#workspace{flex:1;padding:12px;overflow-y:auto;background:#12122a}
+#workspace h4{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px}
+#drop-zone{min-height:200px;background:#0a0a1a;border:2px dashed #2a2a5a;border-radius:10px;padding:12px;position:relative}
+#drop-zone.drag-over{border-color:#e94560;background:#1a0a1a}
+.dropped-block{padding:8px 12px;margin-bottom:4px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px;position:relative;border:2px solid transparent;transition:all .2s}
+.dropped-block:hover{filter:brightness(1.2)}
+.dropped-block .delete-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:#e94560;border:none;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;cursor:pointer;display:none;align-items:center;justify-content:center;line-height:1}
+.dropped-block:hover .delete-btn{display:flex}
+.dropped-block.executing{animation:pulse-block .4s ease}
+@keyframes pulse-block{0%{filter:brightness(1)}50%{filter:brightness(2.5) saturate(2)}100%{filter:brightness(1)}}
+.nest-indicator{width:16px;height:16px;border-left:3px solid rgba(255,255,255,.3);border-bottom:3px solid rgba(255,255,255,.3);margin-right:4px;flex-shrink:0}
+#controls{padding:10px 12px;background:#0f1020;border-top:1px solid #1a1a4a;display:flex;gap:8px;align-items:center;flex-shrink:0}
+#run-btn{background:#e94560;color:#fff;border:none;padding:8px 20px;border-radius:8px;cursor:pointer;font-weight:700;font-size:14px;transition:all .2s}
+#run-btn:hover{background:#ff6b8a;transform:scale(1.05)}
+#run-btn:disabled{background:#444;cursor:not-allowed;transform:none}
+#clear-btn{background:#333;color:#aaa;border:1px solid #444;padding:8px 16px;border-radius:8px;cursor:pointer;font-size:13px}
+#clear-btn:hover{background:#444}
+#speed-label{font-size:12px;color:#666;margin-left:auto}
+#speed-range{width:80px}
+#code-preview{padding:10px 12px;background:#0a0a1a;border-top:1px solid #1a1a4a;max-height:110px;overflow-y:auto;flex-shrink:0}
+#code-preview h4{font-size:11px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px}
+#pseudo-code{font-family:monospace;font-size:11px;color:#7dd3fc;white-space:pre;line-height:1.6}
+#right-panel{width:280px;background:#0a0a1a;border-left:2px solid #0f3460;display:flex;flex-direction:column;flex-shrink:0}
+#canvas-container{padding:12px;flex:1;display:flex;flex-direction:column}
+#canvas-container h4{font-size:12px;color:#888;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px}
+#grid-canvas{border:2px solid #1a3a6a;border-radius:8px;background:#0d0d1f;display:block}
+#status-bar{padding:8px 12px;background:#0f3460;border-top:1px solid #1a1a4a;font-size:12px;min-height:36px;flex-shrink:0}
+#status-msg{color:#aaa}
+#status-msg.success{color:#5dcaa5}
+#status-msg.error{color:#f87171}
+#status-msg.info{color:#7dd3fc}
+#stats-row{display:flex;gap:8px;padding:8px 12px;border-top:1px solid #1a1a4a;flex-shrink:0}
+.stat{background:#111130;border-radius:6px;padding:6px 10px;flex:1;text-align:center}
+.stat .val{font-size:18px;font-weight:700;color:#e94560}
+.stat .lbl{font-size:10px;color:#666;margin-top:2px}
+#legend{padding:8px 12px;border-top:1px solid #1a1a4a;flex-shrink:0}
+#legend h5{font-size:11px;color:#666;margin-bottom:6px}
+.leg-row{display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:11px;color:#888}
+.leg-dot{width:14px;height:14px;border-radius:3px;flex-shrink:0}
+#modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:100;display:none;align-items:center;justify-content:center}
+#modal-overlay.show{display:flex}
+#modal{background:#16213e;border:2px solid #e94560;border-radius:16px;padding:30px;max-width:360px;text-align:center;animation:modal-in .4s cubic-bezier(.175,.885,.32,1.275)}
+@keyframes modal-in{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+#modal h2{font-size:2em;margin-bottom:10px}
+#modal p{color:#aaa;margin-bottom:20px;font-size:14px;line-height:1.6}
+#modal-btn{background:#e94560;color:#fff;border:none;padding:12px 28px;border-radius:10px;cursor:pointer;font-size:15px;font-weight:700;transition:all .2s}
+#modal-btn:hover{transform:scale(1.05)}
+.param-input{background:#0a0a1a;border:1px solid #2a2a5a;color:#7dd3fc;border-radius:4px;padding:2px 6px;width:40px;font-size:12px;margin:0 2px}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:#0a0a1a}
+::-webkit-scrollbar-thumb{background:#2a2a5a;border-radius:3px}
+#hint-box{margin:8px 12px;padding:8px;background:#12122a;border-left:3px solid #378add;border-radius:4px;font-size:11px;color:#7dd3fc;display:none}
+</style>
+</head>
+<body>
+<div id="app">
+<div id="header">
+  <h1>🐱 Chat vers Fromage — Structures de Contrôle</h1>
+  <div id="level-badges">
+    <div class="lvl-badge active" data-level="1" onclick="selectLevel(1)">Niv.1 Séquentiel</div>
+    <div class="lvl-badge locked" data-level="2" onclick="selectLevel(2)">Niv.2 Répétition</div>
+    <div class="lvl-badge locked" data-level="3" onclick="selectLevel(3)">Niv.3 Conditions</div>
+  </div>
+</div>
+<div id="main">
+  <div id="left-panel">
+    <div id="level-info">
+      <h3 id="lv-title">Niveau 1 — Séquence</h3>
+      <p id="lv-desc">Guide le chat vers le fromage en utilisant des instructions <strong>étape par étape</strong>.</p>
+    </div>
+    <div id="objective">🎯 <span id="obj-text">Atteins le fromage en moins de 8 blocs</span></div>
+    <div id="hint-box"></div>
+    <div id="toolbox">
+      <h4>Blocs disponibles</h4>
+      <div id="block-list"></div>
+    </div>
+  </div>
+  <div id="center-panel">
+    <div id="workspace">
+      <h4>🧩 Espace de programmation — Glisse tes blocs ici</h4>
+      <div id="drop-zone" ondragover="onDragOver(event)" ondrop="onDrop(event)" ondragleave="onDragLeave(event)">
+        <div id="placeholder" style="color:#333;font-size:13px;text-align:center;padding:30px 0">Glisse des blocs ici pour construire ton programme...</div>
+      </div>
+    </div>
+    <div id="controls">
+      <button id="run-btn" onclick="runProgram()">▶ Exécuter</button>
+      <button id="clear-btn" onclick="clearBlocks()">🗑 Effacer</button>
+      <span id="speed-label">Vitesse :</span>
+      <input id="speed-range" type="range" min="1" max="5" value="3" style="width:70px">
+    </div>
+    <div id="code-preview">
+      <h4>📝 Code généré</h4>
+      <div id="pseudo-code">// Ajoute des blocs pour voir le code...</div>
+    </div>
+  </div>
+  <div id="right-panel">
+    <div id="canvas-container">
+      <h4>🗺 Grille — Résultat de l'exécution</h4>
+      <canvas id="grid-canvas" width="256" height="256"></canvas>
+    </div>
+    <div id="status-bar"><div id="status-msg">Prêt. Construis ton programme !</div></div>
+    <div id="stats-row">
+      <div class="stat"><div class="val" id="stat-moves">0</div><div class="lbl">Mouvements</div></div>
+      <div class="stat"><div class="val" id="stat-blocks">0</div><div class="lbl">Blocs utilisés</div></div>
+      <div class="stat"><div class="val" id="stat-stars">—</div><div class="lbl">Étoiles</div></div>
+    </div>
+    <div id="legend">
+      <h5>Légende</h5>
+      <div class="leg-row"><div class="leg-dot" style="background:#f59e0b"></div>Mur</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#1d9e75"></div>Chemin libre</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#e94560"></div>Départ (chat)</div>
+      <div class="leg-row"><div class="leg-dot" style="background:#fcd34d"></div>Fromage 🧀</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal">
+    <div id="modal-emoji" style="font-size:3em;margin-bottom:8px">🎉</div>
+    <h2 id="modal-title">Bravo !</h2>
+    <p id="modal-body"></p>
+    <button id="modal-btn" onclick="closeModal()">Continuer</button>
+  </div>
+</div>
+
+<script>
+const LEVELS = {
+  1:{
+    title:"Niveau 1 — Séquence",
+    desc:"Guide le chat vers le fromage en utilisant des instructions <strong>étape par étape</strong>. Chaque bloc exécute une seule action.",
+    obj:"Atteins le fromage en moins de 8 blocs",
+    maxBlocks:8,
+    grid:[
+      [1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,1,1,0,1,0,1],
+      [1,0,0,0,0,0,0,1],
+      [1,1,0,1,1,0,1,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,1,0,1,0,0,1],
+      [1,1,1,1,1,1,1,1],
+    ],
+    cat:{x:1,y:1},
+    cheese:{x:6,y:6},
+    blocks:['move_right','move_down','move_left','move_up']
+  },
+  2:{
+    title:"Niveau 2 — Répétition",
+    desc:"Utilise les blocs <strong>Répéter N fois</strong> pour réduire ton code !",
+    obj:"Atteins le fromage avec max 5 blocs (répétition obligatoire !)",
+    maxBlocks:5,
+    grid:[
+      [1,1,1,1,1,1,1,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,1],
+      [1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,1],
+      [1,1,1,1,1,1,1,1],
+    ],
+    cat:{x:1,y:1},
+    cheese:{x:6,y:7},
+    blocks:['move_right','move_down','move_left','repeat']
+  },
+  3:{
+    title:"Niveau 3 — Conditions & Boucles",
+    desc:"Le labyrinthe change ! Utilise <strong>Si mur alors</strong> et <strong>Tant que</strong> pour t'adapter dynamiquement.",
+    obj:"Atteins le fromage avec la structure de contrôle correcte",
+    maxBlocks:10,
+    grid:[
+      [1,1,1,1,1,1,1,1,1,1],
+      [1,0,1,0,0,0,1,0,0,1],
+      [1,0,1,0,1,0,1,0,1,1],
+      [1,0,0,0,1,0,0,0,0,1],
+      [1,1,1,0,1,1,1,1,0,1],
+      [1,0,0,0,0,0,0,1,0,1],
+      [1,0,1,1,1,0,1,1,0,1],
+      [1,0,1,0,0,0,0,0,0,1],
+      [1,0,0,0,1,1,1,1,0,1],
+      [1,1,1,1,1,1,1,1,1,1],
+    ],
+    cat:{x:1,y:1},
+    cheese:{x:8,y:8},
+    blocks:['move_right','move_down','move_left','move_up','repeat','if_wall','while_not_cheese']
+  }
+};
+
+const BLOCK_DEF = {
+  move_right:{label:'→ Aller à droite',cls:'move',code:'avancer(DROITE)',action:'right',icon:'→'},
+  move_left: {label:'← Aller à gauche',cls:'move',code:'avancer(GAUCHE)',action:'left', icon:'←'},
+  move_up:   {label:'↑ Aller en haut', cls:'move',code:'avancer(HAUT)',  action:'up',   icon:'↑'},
+  move_down: {label:'↓ Aller en bas',  cls:'move',code:'avancer(BAS)',   action:'down', icon:'↓'},
+  repeat:    {label:'🔁 Répéter N fois',cls:'repeat',code:'répéter(N){...}',action:'repeat',icon:'🔁',hasParam:true,hasChildren:true},
+  if_wall:   {label:'🧱 Si mur devant', cls:'if',   code:'si mur_devant{...}',action:'if_wall',icon:'🧱',hasChildren:true},
+  while_not_cheese:{label:'🔄 Tant que pas 🧀',cls:'while',code:'tant_que pas_fromage{...}',action:'while_not_cheese',icon:'🔄',hasChildren:true},
+};
+
+let currentLevel = 1;
+let droppedBlocks = [];
+let isRunning = false;
+let catPos = {x:1,y:1};
+let totalMoves = 0;
+let unlockedLevels = [1];
+let levelDone = [false,false,false];
+let draggedType = null;
+
+const canvas = document.getElementById('grid-canvas');
+const ctx = canvas.getContext('2d');
+const CELL = 32;
+
+/* ── helpers ── */
+function sleep(ms){ return new Promise(r => setTimeout(r, ms)); }
+
+function setStatus(msg, cls){
+  const el = document.getElementById('status-msg');
+  el.textContent = msg;
+  el.className = cls || '';
+}
+
+function updateStats(){
+  document.getElementById('stat-blocks').textContent = countBlocks(droppedBlocks);
+  document.getElementById('stat-moves').textContent  = totalMoves;
+}
+
+function countBlocks(arr){
+  return arr.reduce((s,b) => s + 1 + (b.children ? countBlocks(b.children) : 0), 0);
+}
+
+/* ── level select ── */
+function selectLevel(n){
+  if(!unlockedLevels.includes(n)) return;
+  currentLevel = n;
+  droppedBlocks = [];
+  renderAll();
+  document.querySelectorAll('.lvl-badge').forEach(b => {
+    const lv = parseInt(b.dataset.level);
+    b.className = 'lvl-badge ' + (lv===n ? 'active' : unlockedLevels.includes(lv) ? (levelDone[lv-1]?'done':'available') : 'locked');
+  });
+}
+
+function renderAll(){
+  const lv = LEVELS[currentLevel];
+  catPos = {...lv.cat};
+  totalMoves = 0;
+  document.getElementById('lv-title').textContent   = lv.title;
+  document.getElementById('lv-desc').innerHTML      = lv.desc;
+  document.getElementById('obj-text').textContent   = lv.obj;
+  renderToolbox();
+  renderDropZone();
+  renderGrid([]);
+  updateStats();
+  document.getElementById('stat-stars').textContent = '—';
+  setStatus('Prêt. Construis ton programme !', '');
+  document.getElementById('run-btn').disabled = false;
+}
+
+/* ── toolbox ── */
+function renderToolbox(){
+  const lv = LEVELS[currentLevel];
+  const el = document.getElementById('block-list');
+  el.innerHTML = '';
+  lv.blocks.forEach(bk => {
+    const def = BLOCK_DEF[bk];
+    const d = document.createElement('div');
+    d.className = 'block-tool ' + def.cls;
+    d.draggable = true;
+    d.innerHTML = `<span>${def.icon}</span><span>${def.label}</span>`;
+    d.addEventListener('dragstart', e => { draggedType = bk; e.dataTransfer.effectAllowed = 'copy'; });
+    d.addEventListener('dragend',   () => { draggedType = null; });
+    d.addEventListener('click',     () => addBlock(bk));
+    el.appendChild(d);
+  });
+}
+
+/* ── drag & drop ── */
+function onDragOver(e){ e.preventDefault(); document.getElementById('drop-zone').classList.add('drag-over'); }
+function onDragLeave(){  document.getElementById('drop-zone').classList.remove('drag-over'); }
+function onDrop(e){
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('drag-over');
+  if(draggedType) addBlock(draggedType);
+}
+
+/* ── block management ── */
+function addBlock(type){
+  const def = BLOCK_DEF[type];
+  droppedBlocks.push({type, id: Date.now()+'_'+Math.random(), param: def.hasParam?3:null, children:[]});
+  renderDropZone();
+  updatePseudoCode();
+}
+
+function deleteBlock(id){
+  function remove(arr){ return arr.filter(b => { if(b.id===id) return false; if(b.children) b.children=remove(b.children); return true; }); }
+  droppedBlocks = remove(droppedBlocks);
+  renderDropZone();
+  updatePseudoCode();
+}
+
+function clearBlocks(){
+  droppedBlocks = [];
+  renderDropZone();
+  updatePseudoCode();
+  const lv = LEVELS[currentLevel];
+  catPos = {...lv.cat};
+  totalMoves = 0;
+  renderGrid([]);
+  updateStats();
+  setStatus('Programme effacé.', 'info');
+}
+
+function updateParam(id, val){
+  function find(arr){ for(const b of arr){ if(b.id===id){b.param=parseInt(val)||1;return true;} if(b.children&&find(b.children))return true; } return false; }
+  find(droppedBlocks);
+  updatePseudoCode();
+}
+
+/* ── render drop zone ── */
+function renderDropZone(){
+  const dz = document.getElementById('drop-zone');
+  const ph = document.getElementById('placeholder');
+  dz.querySelectorAll('.dropped-block, .child-adder').forEach(e => e.remove());
+  if(droppedBlocks.length === 0){ ph.style.display = 'block'; updateStats(); return; }
+  ph.style.display = 'none';
+  droppedBlocks.forEach(b => renderBlock(b, dz, 0));
+  updateStats();
+}
+
+function renderBlock(b, container, depth){
+  const def = BLOCK_DEF[b.type];
+  const el  = document.createElement('div');
+  el.className = 'dropped-block ' + def.cls;
+  el.id = 'block_' + b.id;
+  el.style.marginLeft = (depth * 18) + 'px';
+
+  let inner = `<span>${def.icon}</span>`;
+  if(depth > 0){ const ni = document.createElement('div'); ni.className='nest-indicator'; el.appendChild(ni); }
+
+  if(def.hasParam){
+    inner += `<span>${def.label.replace('N', `<input class="param-input" type="number" min="1" max="20" value="${b.param||3}"
+      onchange="updateParam('${b.id}',this.value)"
+      onclick="event.stopPropagation()">`)}</span>`;
+  } else {
+    inner += `<span>${def.label}</span>`;
+  }
+
+  el.innerHTML += inner;
+  const del = document.createElement('button');
+  del.className = 'delete-btn'; del.textContent = '×';
+  del.onclick = e => { e.stopPropagation(); deleteBlock(b.id); };
+  el.appendChild(del);
+  container.appendChild(el);
+
+  if(def.hasChildren){
+    // render existing children
+    b.children.forEach(c => renderBlock(c, container, depth + 1));
+
+    // "add child" selector
+    const addRow = document.createElement('div');
+    addRow.className = 'child-adder';
+    addRow.style.cssText = `margin-left:${(depth+1)*18+4}px;margin-bottom:4px`;
+    const sel = document.createElement('select');
+    sel.style.cssText = 'background:#0a0a1a;border:1px dashed #2a2a5a;color:#888;font-size:11px;padding:2px 4px;border-radius:4px;cursor:pointer';
+    sel.innerHTML = '<option value="">+ Ajouter action interne...</option>';
+    ['move_right','move_down','move_left','move_up'].forEach(ck => {
+      if(LEVELS[currentLevel].blocks.includes(ck)){
+        const o = document.createElement('option'); o.value = ck; o.textContent = BLOCK_DEF[ck].label; sel.appendChild(o);
+      }
+    });
+    sel.onchange = () => {
+      if(sel.value){
+        b.children.push({type:sel.value, id:Date.now()+'_'+Math.random(), param:null, children:[]});
+        sel.value = '';
+        renderDropZone();
+        updatePseudoCode();
+      }
+    };
+    addRow.appendChild(sel);
+    container.appendChild(addRow);
+  }
+}
+
+/* ── pseudo code ── */
+function updatePseudoCode(){
+  let code = generateCode(droppedBlocks, 0);
+  if(!code.trim()) code = '// Ajoute des blocs pour voir le code...';
+  document.getElementById('pseudo-code').textContent = code;
+}
+
+function generateCode(blocks, indent){
+  const sp = '  '.repeat(indent);
+  let out = '';
+  blocks.forEach(b => {
+    const def = BLOCK_DEF[b.type];
+    if(def.hasChildren){
+      if(b.type==='repeat')            out += sp+`répéter(${b.param||3}) {\n`+generateCode(b.children,indent+1)+sp+'}\n';
+      else if(b.type==='if_wall')      out += sp+'si (mur_devant) {\n'+generateCode(b.children,indent+1)+sp+'}\n';
+      else if(b.type==='while_not_cheese') out += sp+'tant_que (pas_fromage) {\n'+generateCode(b.children,indent+1)+sp+'}\n';
+    } else {
+      out += sp + def.code + '\n';
+    }
+  });
+  return out;
+}
+
+/* ── grid rendering ── */
+function renderGrid(path){
+  const lv   = LEVELS[currentLevel];
+  const grid = lv.grid;
+  const rows = grid.length, cols = grid[0].length;
+  canvas.width  = cols * CELL;
+  canvas.height = rows * CELL;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  for(let r=0; r<rows; r++){
+    for(let c=0; c<cols; c++){
+      const cell = grid[r][c];
+      if(cell === 1){
+        ctx.fillStyle = '#1a3a5a'; ctx.fillRect(c*CELL,r*CELL,CELL,CELL);
+        ctx.fillStyle = '#f59e0b33'; ctx.fillRect(c*CELL+2,r*CELL+2,CELL-4,CELL-4);
+      } else {
+        const onPath = path && path.some(p=>p.x===c&&p.y===r);
+        ctx.fillStyle = onPath ? '#1d4a3a' : '#0d1a2e';
+        ctx.fillRect(c*CELL, r*CELL, CELL, CELL);
+        ctx.strokeStyle='#1a2a4a'; ctx.lineWidth=0.5; ctx.strokeRect(c*CELL,r*CELL,CELL,CELL);
+      }
+      // cheese
+      if(lv.cheese.x===c && lv.cheese.y===r){
+        ctx.font = `${CELL-6}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('🧀', c*CELL+CELL/2, r*CELL+CELL/2);
+      }
+    }
+  }
+  // cat
+  ctx.font = `${CELL-6}px serif`; ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('🐱', catPos.x*CELL+CELL/2, catPos.y*CELL+CELL/2);
+}
+
+/* ══════════════════════════════════════════
+   RUN — fixed: stepQueue built correctly,
+   if_wall uses direction from children,
+   while loop iterates children properly
+   ══════════════════════════════════════════ */
+async function runProgram(){
+  if(isRunning) return;
+  if(droppedBlocks.length === 0){ setStatus('⚠ Ajoute des blocs avant d\'exécuter !','error'); return; }
+
+  isRunning = true;
+  document.getElementById('run-btn').disabled = true;
+
+  const lv  = LEVELS[currentLevel];
+  catPos     = {...lv.cat};
+  totalMoves = 0;
+  let path    = [];
+  let success = false;
+  let blocked = false;
+
+  renderGrid(path);
+  updateStats();
+  setStatus('⏳ Exécution en cours…', 'info');
+
+  const speedVal = parseInt(document.getElementById('speed-range').value);
+  const delay    = 600 - (speedVal - 1) * 100;
+
+  const grid = lv.grid;
+  const rows = grid.length, cols = grid[0].length;
+
+  function isWall(x, y){ return x<0||y<0||y>=rows||x>=cols||grid[y][x]===1; }
+  function atCheese(){ return catPos.x===lv.cheese.x && catPos.y===lv.cheese.y; }
+
+  const DIR = { right:{dx:1,dy:0}, left:{dx:-1,dy:0}, up:{dx:0,dy:-1}, down:{dx:0,dy:1} };
+
+  async function move(dir, blockId){
+    const d  = DIR[dir];
+    const nx = catPos.x + d.dx, ny = catPos.y + d.dy;
+    // highlight block
+    const el = document.getElementById('block_' + blockId);
+    if(el){ el.classList.remove('executing'); void el.offsetWidth; el.classList.add('executing'); }
+
+    if(!isWall(nx, ny)){
+      catPos.x = nx; catPos.y = ny;
+      totalMoves++;
+      path.push({...catPos});
+    } else {
+      setStatus('⚠ Mur ! Le chat ne peut pas passer.','error');
+      blocked = true;
+    }
+    renderGrid(path);
+    updateStats();
+    await sleep(delay);
+  }
+
+  /* Recursively execute a list of block objects */
+  async function execBlocks(blocks){
+    for(const b of blocks){
+      if(success || blocked) return;
+      const def = BLOCK_DEF[b.type];
+
+      if(def.action === 'repeat'){
+        const n = Math.min(b.param||3, 50);
+        for(let i=0; i<n; i++){
+          if(success||blocked) break;
+          await execBlocks(b.children);
+        }
+
+      } else if(def.action === 'if_wall'){
+        // check if there is a wall in the direction of the first child move
+        let wallAhead = false;
+        if(b.children.length > 0){
+          const firstChild = BLOCK_DEF[b.children[0].type];
+          if(firstChild && DIR[firstChild.action]){
+            const d = DIR[firstChild.action];
+            wallAhead = isWall(catPos.x+d.dx, catPos.y+d.dy);
+          }
+        } else {
+          // default: check right or down
+          wallAhead = isWall(catPos.x+1,catPos.y)||isWall(catPos.x,catPos.y+1);
+        }
+        if(wallAhead) await execBlocks(b.children);
+
+      } else if(def.action === 'while_not_cheese'){
+        let iter = 0, maxIter = 60;
+        while(!atCheese() && iter < maxIter){
+          if(blocked) break;
+          await execBlocks(b.children);
+          iter++;
+        }
+        if(iter >= maxIter){
+          setStatus('⚠ Boucle infinie détectée ! Vérifie ta logique.','error');
+          blocked = true; return;
+        }
+
+      } else if(DIR[def.action]){
+        await move(def.action, b.id);
+      }
+
+      if(atCheese()){ success = true; return; }
+    }
+  }
+
+  await execBlocks(droppedBlocks);
+
+  isRunning = false;
+  document.getElementById('run-btn').disabled = false;
+
+  if(success){
+    const nb    = countBlocks(droppedBlocks);
+    const stars = nb <= lv.maxBlocks ? 3 : nb <= lv.maxBlocks+3 ? 2 : 1;
+    document.getElementById('stat-stars').textContent = '⭐'.repeat(stars);
+    setStatus(`🎉 Bravo ! Fromage atteint en ${totalMoves} mouvements avec ${nb} blocs !`, 'success');
+    levelDone[currentLevel-1] = true;
+    if(currentLevel < 3 && !unlockedLevels.includes(currentLevel+1)) unlockedLevels.push(currentLevel+1);
+    document.querySelectorAll('.lvl-badge').forEach(b => {
+      const lv2 = parseInt(b.dataset.level);
+      b.className = 'lvl-badge ' + (lv2===currentLevel?'done':unlockedLevels.includes(lv2)?(levelDone[lv2-1]?'done':'available'):'locked');
+    });
+    showModal(stars, nb, totalMoves);
+  } else if(!blocked){
+    setStatus('😿 Le chat n\'a pas atteint le fromage. Modifie ton programme !','error');
+    document.getElementById('stat-stars').textContent = '—';
+  }
+}
+
+/* ── modal ── */
+function showModal(stars, blocks, moves){
+  const msgs     = ['Bien essayé ! Tu peux faire mieux.','Bon travail ! Continue à optimiser !','Parfait ! Solution optimale !'];
+  const concepts = ['Séquence','Boucle de répétition','Conditions & While'];
+  document.getElementById('modal-emoji').textContent = stars===3?'🏆':stars===2?'🎉':'👍';
+  document.getElementById('modal-title').textContent = msgs[stars-1];
+  document.getElementById('modal-body').innerHTML =
+    `<strong>${'⭐'.repeat(stars)}</strong><br><br>Concept maîtrisé : <em>${concepts[currentLevel-1]}</em><br>
+     Fromage atteint en <strong>${moves}</strong> mouvements<br>avec <strong>${blocks}</strong> blocs de code.
+     ${currentLevel<3?'<br><br>🔓 Niveau suivant débloqué !':'<br><br>🏆 Tu as maîtrisé tous les niveaux !'}`;
+  document.getElementById('modal-btn').textContent = currentLevel<3?'Niveau suivant →':'Rejouer !';
+  document.getElementById('modal-overlay').classList.add('show');
+}
+
+function closeModal(){
+  document.getElementById('modal-overlay').classList.remove('show');
+  if(currentLevel < 3 && levelDone[currentLevel-1]) selectLevel(currentLevel+1);
+}
+
+/* ── init ── */
+renderAll();
+updatePseudoCode();
+</script>
+</body>
+</html>
